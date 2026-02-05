@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>CIKA CALE - Pro Delivery App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Segoe UI', sans-serif;
+  background:#f2f3f5;
+}
+h1,h2,h3,h4{margin:0 0 10px 0;}
+.center{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  padding:15px;
+}
+.card{
+  background:white;
+  border-radius:20px;
+  padding:20px;
+  margin:10px;
+  width:350px;
+  box-shadow:0 10px 20px rgba(0,0,0,0.15);
+  animation:fade .5s ease;
+}
+input,button,select{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border:none;
+  border-radius:12px;
+}
+button{
+  background:#ff4d4d;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  transition:.3s;
+}
+button:hover{transform:scale(1.05);}
+.item{
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:10px;
+  animation:slide .3s ease;
+  position:relative;
+  overflow:hidden;
+}
+.item.pending{background:#ffeaea;}
+.item.in-progress{background:#fff2e6;}
+.item.delivered{background:#e6ffe6; text-decoration:line-through;}
+.status-bar{
+  height:5px;
+  border-radius:5px;
+  margin-bottom:5px;
+  background:#ddd;
+  overflow:hidden;
+}
+.status-fill{
+  height:100%;
+  width:0%;
+  background:#ff4d4d;
+  transition:width .5s;
+}
+.status-fill.in-progress{background:#ffa500;}
+.status-fill.delivered{background:#4CAF50;}
+.nav{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+@keyframes fade{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:none;}
+}
+@keyframes slide{
+  from{opacity:0;transform:translateX(-15px);}
+  to{opacity:1;transform:none;}
+}
+</style>
+</head>
+<body>
+
+<h1 style="text-align:center; padding:15px; background:#ff4d4d; color:white; border-bottom:3px solid #cc0000;">🚀 CIKA CALE</h1>
+
+<div class="center">
+
+<!-- ADMIN PANEL -->
+<div class="card">
+  <div class="nav"><h3>👑 Admin Panel</h3></div>
+  <input id="cname" placeholder="Ime kupca">
+  <input id="caddr" placeholder="Adresa">
+  <input id="cprod" placeholder="Proizvodi">
+  <button id="addOrderBtn">➕ Dodaj porudžbinu</button>
+  <h4>📦 Sve porudžbine:</h4>
+  <div id="adminOrders"></div>
+</div>
+
+<!-- KURIR PANEL -->
+<div class="card">
+  <div class="nav"><h3>🚴‍♂️ Kurir Panel</h3></div>
+  <button id="routeBtn">📍 Otvori rutu u Google Maps</button>
+  <h4>🛒 Dostave:</h4>
+  <div id="courierOrders"></div>
+</div>
+
+</div>
+
+<script>
+// INIT
+if(!localStorage.orders){ localStorage.orders = JSON.stringify([]); }
+
+// ELEMENTI
+const addOrderBtn = document.getElementById("addOrderBtn");
+const cname = document.getElementById("cname");
+const caddr = document.getElementById("caddr");
+const cprod = document.getElementById("cprod");
+const adminOrders = document.getElementById("adminOrders");
+const courierOrders = document.getElementById("courierOrders");
+const routeBtn = document.getElementById("routeBtn");
+
+// FUNKCIJA ZA DODAVANJE PORUDŽBINE
+addOrderBtn.addEventListener("click", ()=>{
+  if(!cname.value || !caddr.value || !cprod.value) return alert("Popuni sve");
+  const orders = JSON.parse(localStorage.orders);
+  orders.push({name:cname.value, addr:caddr.value, prod:cprod.value, status:"pending"});
+  localStorage.orders = JSON.stringify(orders);
+
+  // animacija dodavanja
+  const card = document.createElement('div');
+  card.className='item pending';
+  card.innerHTML=`<div class="status-bar"><div class="status-fill"></div></div>
+    <b>${cname.value}</b><br>${caddr.value}<br>${cprod.value}<br>Status: pending`;
+  adminOrders.prepend(card);
+  setTimeout(()=>loadAdmin(),500);
+  cname.value=caddr.value=cprod.value="";
+  loadCourier();
+});
+
+// LOAD ADMIN
+function loadAdmin(){
+  const orders = JSON.parse(localStorage.orders);
+  adminOrders.innerHTML="";
+  orders.forEach((o,i)=>{
+    let cls = o.status;
+    let progress = o.status==='pending'?33:(o.status==='in-progress'?66:100);
+    adminOrders.innerHTML+=`<div class="item ${cls}">
+      <div class="status-bar"><div class="status-fill ${cls}" style="width:${progress}%"></div></div>
+      <b>${o.name}</b><br>${o.addr}<br>${o.prod}<br>Status: ${o.status}<br>
+      ${o.status!=='delivered'?`<button onclick="setStatus(${i})">➡ Kuriru</button>`:''}
+    </div>`;
+  });
+}
+
+// SET STATUS KURIRU
+window.setStatus = function(i){
+  const orders = JSON.parse(localStorage.orders);
+  if(orders[i].status==='pending') orders[i].status='in-progress';
+  else if(orders[i].status==='in-progress') orders[i].status='delivered';
+  localStorage.orders = JSON.stringify(orders);
+  loadAdmin();
+  loadCourier();
+}
+
+// LOAD KURIR
+function loadCourier(){
+  const orders = JSON.parse(localStorage.orders);
+  courierOrders.innerHTML="";
+  orders.forEach((o,i)=>{
+    if(o.status!=='delivered'){
+      let cls=o.status;
+      let progress=o.status==='pending'?33:66;
+      courierOrders.innerHTML+=`<div class="item ${cls}">
+        <div class="status-bar"><div class="status-fill ${cls}" style="width:${progress}%"></div></div>
+        <b>${o.name}</b><br>${o.addr}<br>${o.prod}<br>
+        <button onclick="setStatus(${i})">➡ Kuriru / Dostavljeno</button>
+      </div>`;
+    }
+  });
+}
+
+// RUTA
+routeBtn.addEventListener("click", ()=>{
+  const orders = JSON.parse(localStorage.orders).filter(o=>o.status!=='delivered').map(o=>o.addr).join('/');
+  if(orders) window.open("https://www.google.com/maps/dir/"+orders);
+});
+
+// INIT LOAD
+loadAdmin();
+loadCourier();
+</script>
+
+</body>
+</html>
